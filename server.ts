@@ -3,8 +3,14 @@ import { createServer as createViteServer } from "vite";
 import path from "path";
 import fs from "fs";
 import { YoutubeTranscript } from 'youtube-transcript';
-import ytdl from 'ytdl-core';
+import ytdl from '@distube/ytdl-core';
 import ffmpeg from 'fluent-ffmpeg';
+import ffmpegPath from 'ffmpeg-static';
+
+// Set ffmpeg path
+if (ffmpegPath) {
+  ffmpeg.setFfmpegPath(ffmpegPath);
+}
 
 async function startServer() {
   const app = express();
@@ -54,29 +60,34 @@ async function startServer() {
     try {
       console.log(`Starting trim for ${videoId}: ${start}s to ${end}s`);
       
-      // Get video stream
+      // Use ytdl to get both audio and video
+      // Note: ytdl-core often has issues with 'highestvideo' alone not having audio
+      // We'll use a format that has both
       const stream = ytdl(videoUrl, {
-        quality: 'highestvideo',
-        filter: format => format.container === 'mp4'
+        filter: 'audioandvideo',
+        quality: 'highest'
       });
 
       ffmpeg(stream)
         .setStartTime(start)
         .setDuration(end - start)
         .output(outputPath)
+        .on('start', (commandLine) => {
+          console.log('Spawned FFmpeg with command: ' + commandLine);
+        })
         .on('end', () => {
           console.log('Trimming finished');
           res.json({ success: true, downloadUrl: `/api/download/${outputFileName}` });
         })
         .on('error', (err) => {
           console.error('FFmpeg error:', err);
-          res.status(500).json({ error: "Failed to process video. FFmpeg might not be installed or video format is unsupported." });
+          res.status(500).json({ error: `FFmpeg error: ${err.message}` });
         })
         .run();
 
     } catch (error) {
       console.error("Error trimming video:", error);
-      res.status(500).json({ error: "Failed to start video processing." });
+      res.status(500).json({ error: "Failed to start video processing. The video might be restricted." });
     }
   });
 
