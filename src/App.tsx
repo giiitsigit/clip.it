@@ -89,6 +89,52 @@ export default function App() {
     }, 3000);
   };
 
+  const handleDownload = () => {
+    // In a real app, this would trigger the download of the processed file.
+    // For now, we simulate it.
+    const link = document.createElement('a');
+    link.href = '#'; // Placeholder
+    link.download = `clip-${videoId}-${Math.floor(range[0])}-${Math.floor(range[1])}.mp4`;
+    document.body.appendChild(link);
+    // link.click(); // Don't actually click in simulation
+    document.body.removeChild(link);
+    alert("Download started! (Simulation)");
+  };
+
+  const setShortsPreset = (seconds: number) => {
+    const start = range[0];
+    const end = Math.min(start + seconds, duration);
+    setRange([start, end]);
+  };
+
+  const updateRangeFromInput = (type: 'start' | 'end', field: 'min' | 'sec', value: string) => {
+    const numValue = parseInt(value) || 0;
+    const currentStart = range[0];
+    const currentEnd = range[1];
+    
+    if (type === 'start') {
+      const min = field === 'min' ? numValue : Math.floor(currentStart / 60);
+      const sec = field === 'sec' ? numValue : Math.floor(currentStart % 60);
+      const newStart = Math.min(min * 60 + sec, currentEnd - 1);
+      setRange([Math.max(0, newStart), currentEnd]);
+    } else {
+      const min = field === 'min' ? numValue : Math.floor(currentEnd / 60);
+      const sec = field === 'sec' ? numValue : Math.floor(currentEnd % 60);
+      const newEnd = Math.max(min * 60 + sec, currentStart + 1);
+      setRange([currentStart, Math.min(newEnd, duration)]);
+    }
+  };
+
+  const startMinSec = {
+    min: Math.floor(range[0] / 60),
+    sec: Math.floor(range[0] % 60)
+  };
+
+  const endMinSec = {
+    min: Math.floor(range[1] / 60),
+    sec: Math.floor(range[1] % 60)
+  };
+
   return (
     <div className="min-h-screen bg-[#0A0A0B] text-white selection:bg-primary/30 flex flex-col">
       {/* Header */}
@@ -150,9 +196,12 @@ export default function App() {
                 </Button>
                 <h2 className="text-xl font-bold truncate max-w-md">Trimming Video</h2>
               </div>
-              <Badge variant="secondary" className="bg-primary/10 text-primary border-none px-3 py-1 font-bold">
-                {formatTime(range[1] - range[0])} Selected
-              </Badge>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground uppercase font-bold mr-2">Presets:</span>
+                <Button variant="outline" size="sm" className="h-7 text-[10px] font-bold border-white/10" onClick={() => setShortsPreset(15)}>15s</Button>
+                <Button variant="outline" size="sm" className="h-7 text-[10px] font-bold border-white/10" onClick={() => setShortsPreset(30)}>30s</Button>
+                <Button variant="outline" size="sm" className="h-7 text-[10px] font-bold border-white/10" onClick={() => setShortsPreset(60)}>60s (Shorts)</Button>
+              </div>
             </div>
 
             <div className="bg-black rounded-[24px] border border-white/10 shadow-2xl overflow-hidden">
@@ -165,39 +214,85 @@ export default function App() {
                 />
               </div>
               
-              <div className="bg-[#1A1A1C] p-8 space-y-6">
-                <div className="flex items-center justify-between">
+              <div className="bg-[#1A1A1C] p-8 space-y-8">
+                <div className="flex flex-col md:flex-row items-center justify-between gap-6">
                   <div className="flex items-center gap-6">
                     <Button 
                       variant="secondary" 
                       size="icon" 
-                      className="rounded-full w-14 h-14 bg-primary text-white hover:bg-primary/90 shadow-xl shadow-primary/20"
+                      className="rounded-full w-14 h-14 bg-primary text-white hover:bg-primary/90 shadow-xl shadow-primary/20 shrink-0"
                       onClick={() => player?.getPlayerState() === 1 ? player.pauseVideo() : player.playVideo()}
                     >
                       {player?.getPlayerState() === 1 ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6 ml-1" />}
                     </Button>
-                    <div className="space-y-1">
-                      <div className="text-sm text-muted-foreground uppercase tracking-widest font-bold">Selection Range</div>
-                      <div className="text-2xl font-mono font-bold text-primary">
-                        {formatTime(range[0])} <span className="text-white/20 mx-2">—</span> {formatTime(range[1])}
+                    
+                    <div className="flex items-center gap-4">
+                      <div className="space-y-2">
+                        <label className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Start Time</label>
+                        <div className="flex items-center gap-1">
+                          <Input 
+                            type="number" 
+                            className="w-14 h-10 bg-white/5 border-white/10 text-center font-mono text-sm" 
+                            value={startMinSec.min}
+                            onChange={(e) => updateRangeFromInput('start', 'min', e.target.value)}
+                          />
+                          <span className="text-white/20">:</span>
+                          <Input 
+                            type="number" 
+                            className="w-14 h-10 bg-white/5 border-white/10 text-center font-mono text-sm" 
+                            value={startMinSec.sec}
+                            onChange={(e) => updateRangeFromInput('start', 'sec', e.target.value)}
+                          />
+                        </div>
+                      </div>
+                      
+                      <div className="text-white/10 pt-6">—</div>
+
+                      <div className="space-y-2">
+                        <label className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">End Time</label>
+                        <div className="flex items-center gap-1">
+                          <Input 
+                            type="number" 
+                            className="w-14 h-10 bg-white/5 border-white/10 text-center font-mono text-sm" 
+                            value={endMinSec.min}
+                            onChange={(e) => updateRangeFromInput('end', 'min', e.target.value)}
+                          />
+                          <span className="text-white/20">:</span>
+                          <Input 
+                            type="number" 
+                            className="w-14 h-10 bg-white/5 border-white/10 text-center font-mono text-sm" 
+                            value={endMinSec.sec}
+                            onChange={(e) => updateRangeFromInput('end', 'sec', e.target.value)}
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>
                   
-                  <Button 
-                    size="lg"
-                    className="h-14 px-10 rounded-2xl bg-white text-black font-bold text-lg hover:bg-white/90"
-                    onClick={handleProcess}
-                    disabled={isProcessing || isDone}
-                  >
-                    {isProcessing ? (
-                      <><Loader2 className="w-5 h-5 animate-spin mr-3" /> Processing...</>
-                    ) : isDone ? (
-                      <><CheckCircle2 className="w-5 h-5 mr-3" /> Download Ready</>
+                  <div className="flex gap-3 w-full md:w-auto">
+                    {isDone ? (
+                      <Button 
+                        size="lg"
+                        className="flex-1 md:flex-none h-14 px-10 rounded-2xl bg-green-500 text-white font-bold text-lg hover:bg-green-600 shadow-lg shadow-green-500/20"
+                        onClick={handleDownload}
+                      >
+                        <Download className="w-5 h-5 mr-3" /> Download Clip
+                      </Button>
                     ) : (
-                      <><Scissors className="w-5 h-5 mr-3" /> Trim & Download</>
+                      <Button 
+                        size="lg"
+                        className="flex-1 md:flex-none h-14 px-10 rounded-2xl bg-white text-black font-bold text-lg hover:bg-white/90"
+                        onClick={handleProcess}
+                        disabled={isProcessing}
+                      >
+                        {isProcessing ? (
+                          <><Loader2 className="w-5 h-5 animate-spin mr-3" /> Processing...</>
+                        ) : (
+                          <><Scissors className="w-5 h-5 mr-3" /> Trim Video</>
+                        )}
+                      </Button>
                     )}
-                  </Button>
+                  </div>
                 </div>
 
                 <div className="pt-4">
@@ -213,12 +308,12 @@ export default function App() {
 
             <div className="grid grid-cols-3 gap-4">
               <div className="p-4 rounded-2xl bg-white/5 border border-white/10 text-center">
-                <div className="text-[10px] text-muted-foreground uppercase font-bold mb-1">Format</div>
-                <div className="font-bold">MP4 (1080p)</div>
+                <div className="text-[10px] text-muted-foreground uppercase font-bold mb-1">Duration</div>
+                <div className="font-bold text-primary">{formatTime(range[1] - range[0])}</div>
               </div>
               <div className="p-4 rounded-2xl bg-white/5 border border-white/10 text-center">
-                <div className="text-[10px] text-muted-foreground uppercase font-bold mb-1">Quality</div>
-                <div className="font-bold">High (Original)</div>
+                <div className="text-[10px] text-muted-foreground uppercase font-bold mb-1">Format</div>
+                <div className="font-bold">MP4 (1080p)</div>
               </div>
               <div className="p-4 rounded-2xl bg-white/5 border border-white/10 text-center">
                 <div className="text-[10px] text-muted-foreground uppercase font-bold mb-1">Watermark</div>
