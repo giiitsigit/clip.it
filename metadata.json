@@ -1,0 +1,6 @@
+{
+  "name": "clip.it",
+  "description": "A simple and fast YouTube video trimmer. Paste a link, select your range, and download your clip.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
