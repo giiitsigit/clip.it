@@ -44,6 +44,7 @@ export default function App() {
       setTranscript([]);
       setError(null);
       setIsDone(false);
+      setDownloadUrl(null);
       
       // Fetch transcript from our server
       try {
@@ -80,25 +81,40 @@ export default function App() {
     player?.seekTo(start);
   };
 
-  const handleProcess = () => {
+  const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
+
+  const handleProcess = async () => {
     setIsProcessing(true);
-    // Simulate processing
-    setTimeout(() => {
+    setError(null);
+    try {
+      const res = await fetch('/api/youtube/trim', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          videoId,
+          start: range[0],
+          end: range[1]
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setDownloadUrl(data.downloadUrl);
+        setIsDone(true);
+      } else {
+        setError(data.error || "Failed to process video.");
+      }
+    } catch (err) {
+      console.error("Trim request failed", err);
+      setError("Server error while processing video.");
+    } finally {
       setIsProcessing(false);
-      setIsDone(true);
-    }, 3000);
+    }
   };
 
   const handleDownload = () => {
-    // In a real app, this would trigger the download of the processed file.
-    // For now, we simulate it.
-    const link = document.createElement('a');
-    link.href = '#'; // Placeholder
-    link.download = `clip-${videoId}-${Math.floor(range[0])}-${Math.floor(range[1])}.mp4`;
-    document.body.appendChild(link);
-    // link.click(); // Don't actually click in simulation
-    document.body.removeChild(link);
-    alert("Download started! (Simulation)");
+    if (downloadUrl) {
+      window.location.href = downloadUrl;
+    }
   };
 
   const setShortsPreset = (seconds: number) => {
@@ -294,6 +310,13 @@ export default function App() {
                     )}
                   </div>
                 </div>
+
+                {error && (
+                  <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 flex items-center gap-3 text-red-500 text-sm">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    {error}
+                  </div>
+                )}
 
                 <div className="pt-4">
                   <TrimSlider 
